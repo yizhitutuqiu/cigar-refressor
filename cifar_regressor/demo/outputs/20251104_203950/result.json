@@ -1,0 +1,9 @@
+{
+  "pred_index": 6,
+  "pred_name": "household_furniture",
+  "pred_prob": 0.9999998807907104,
+  "gt_index": 6,
+  "gt_name": "household_furniture",
+  "original": "/data/litengmo/ml-test/cifar_regressor/demo/outputs/20251104_203950/original.png",
+  "annotated": "/data/litengmo/ml-test/cifar_regressor/demo/outputs/20251104_203950/annotated.png"
+}

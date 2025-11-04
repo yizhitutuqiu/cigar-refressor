@@ -35,6 +35,7 @@ class TrainConfig:
 	# model
 	num_classes: int = 20
 	pretrained_backbone: bool = True
+	use_cbam: bool = False
 	hidden_features: int = 256
 	dropout_p: float = 0.1
 
@@ -96,7 +97,7 @@ class Cifar100CoarseDataset(Dataset):
 		# CIFAR 存储为 (3072,) -> (3, 32, 32)
 		img = np.reshape(row, (3, 32, 32))
 		img = np.transpose(img, (1, 2, 0))  # -> (32, 32, 3)
-		img = Image.fromarray(img.astype(np.uint8), mode="RGB")
+		img = Image.fromarray(img.astype(np.uint8))
 		if self.transform is not None:
 			img = self.transform(img)
 		label = int(self.coarse_labels[index])
@@ -161,6 +162,7 @@ def build_model(cfg: TrainConfig) -> nn.Module:
 		num_classes=cfg.num_classes,
 		hidden_features=cfg.hidden_features,
 		dropout_p=cfg.dropout_p,
+		use_cbam=cfg.use_cbam,
 	)
 	return model
 
@@ -254,12 +256,16 @@ def load_config(path: str) -> TrainConfig:
 def main() -> None:
 	parser = argparse.ArgumentParser(description="Train ResNet18+Head on CIFAR-100 coarse labels")
 	parser.add_argument("--config", type=str, default="/data/litengmo/ml-test/cifar_regressor/config/coarse_default.json")
+	parser.add_argument("--gpu", type=int, default=None, help="选择使用的 GPU 编号，如 0、1、7；不填则按 config.device")
 	args = parser.parse_args()
 
 	cfg = load_config(args.config)
+	# 覆盖设备为指定 GPU（优先级高于配置文件）
+	if args.gpu is not None:
+		cfg.device = f"cuda:{args.gpu}"
 	set_seed(cfg.seed)
 
-	device = torch.device(cfg.device if torch.cuda.is_available() and cfg.device.startswith("cuda") else "cpu")
+	device = torch.device(cfg.device if torch.cuda.is_available() and "cuda" in cfg.device else "cpu")
 	model = build_model(cfg).to(device)
 	criterion = nn.CrossEntropyLoss()
 	optimizer = build_optimizer(cfg, model)

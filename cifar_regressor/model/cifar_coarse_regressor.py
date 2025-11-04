@@ -3,6 +3,7 @@ from typing import Optional, Tuple
 import torch  # type: ignore[import-not-found]
 from torch import nn  # type: ignore[import-not-found]
 from torch import Tensor  # type: ignore[import-not-found]
+from .cbam import CBAM  # type: ignore[import-not-found]
 
 
 def _make_resnet18(pretrained: bool = False) -> nn.Module:
@@ -57,16 +58,23 @@ class CifarCoarseRegressor(nn.Module):
 		num_classes: int = 20,
 		dropout_p: float = 0.1,
 		hidden_features: int = 256,
+		use_cbam: bool = False,
 	) -> None:
 		super().__init__()
 		backbone = _make_resnet18(pretrained=pretrained_backbone)
 
-		# Replace the classification head with identity to get a 512-d feature vector.
+		# Keep references to feature blocks for custom forward (to insert CBAM before avgpool)
 		if not hasattr(backbone, "fc"):
 			raise RuntimeError("Unexpected ResNet18 structure: missing attribute 'fc'")
 		in_features = backbone.fc.in_features  # typically 512
-		backbone.fc = nn.Identity()
-		self.backbone = backbone
+		self.stem = nn.Sequential(backbone.conv1, backbone.bn1, backbone.relu, backbone.maxpool)
+		self.layer1 = backbone.layer1
+		self.layer2 = backbone.layer2
+		self.layer3 = backbone.layer3
+		self.layer4 = backbone.layer4
+		self.avgpool = backbone.avgpool
+		self.use_cbam = use_cbam
+		self.cbam = CBAM(in_features) if use_cbam else nn.Identity()
 
 		self.decoder = DecoderHead(
 			in_features=in_features,
@@ -85,7 +93,16 @@ class CifarCoarseRegressor(nn.Module):
 		logits: Tensor of shape (N, C)
 		probs:  Tensor of shape (N, C), softmax over logits
 		"""
-		features = self.backbone(x)
+		# Custom forward to optionally apply CBAM on spatial features
+		x = self.stem(x)
+		x = self.layer1(x)
+		x = self.layer2(x)
+		x = self.layer3(x)
+		x = self.layer4(x)
+		if self.use_cbam:
+			x = self.cbam(x)
+		x = self.avgpool(x)
+		features = torch.flatten(x, 1)
 		logits = self.decoder(features)
 		probs = self.softmax(logits)
 		return logits, probs

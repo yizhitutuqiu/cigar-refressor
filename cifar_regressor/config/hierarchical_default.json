@@ -1,6 +1,6 @@
 {
 	"dataset_root": "/data/litengmo/ml-test/cifar-100-python",
-	"checkpoint_dir": "/data/litengmo/ml-test/cifar_regressor/checkpoints/hier_vit_small",
+	"checkpoint_dir": "/data/litengmo/ml-test/cifar_regressor/checkpoints/hier_vit_small_aug",
 
 	"encoder_name": "vit_small_patch16_224",
 	"pretrained_backbone": true,
@@ -27,7 +27,20 @@
 	"mixed_precision": true,
 
 	"lambda_coarse": 0.2,
-	"scheduler": { "type": "cosine", "eta_min": 1e-6 }
+	"scheduler": { "type": "cosine", "eta_min": 1e-6 },
+
+	"aug": {
+		"hflip_p": 0.5,
+		"rotate_p": 0.2,
+		"rotate_deg": 15,
+		"affine_p": 0.2,
+		"scale_min": 0.9,
+		"scale_max": 1.1,
+		"translate_frac": 0.1,
+		"erase_p": 0.05,
+		"erase_scale": [0.02, 0.1],
+		"erase_ratio": [0.3, 3.3]
+	}
 }
 
 

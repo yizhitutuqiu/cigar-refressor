@@ -1,0 +1,19 @@
+{
+  "model_type": "hierarchical",
+  "coarse": {
+    "pred_index": 0,
+    "pred_name": "aquatic_mammals",
+    "pred_prob": 0.9999996423721313,
+    "gt_index": 0,
+    "gt_name": "aquatic_mammals"
+  },
+  "fine": {
+    "pred_index": 30,
+    "pred_name": "dolphin",
+    "pred_prob": 1.0,
+    "gt_index": 30,
+    "gt_name": "dolphin"
+  },
+  "original": "./cifar_regressor/demo/outputs/20251105_165421/original.png",
+  "annotated": "./cifar_regressor/demo/outputs/20251105_165421/annotated.png"
+}

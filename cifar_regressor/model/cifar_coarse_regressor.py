@@ -6,23 +6,38 @@ from torch import Tensor  # type: ignore[import-not-found]
 from .cbam import CBAM  # type: ignore[import-not-found]
 
 
-def _make_resnet18(pretrained: bool = False) -> nn.Module:
-	"""Create a ResNet18 backbone compatible with different torchvision versions.
+def _make_resnet(encoder_name: str = "resnet18", pretrained: bool = False) -> nn.Module:
+    """Create a ResNet backbone compatible with different torchvision versions.
 
-	- torchvision>=0.13 uses `weights` argument
-	- older versions use `pretrained` boolean
-	"""
-	try:
-		from torchvision.models import resnet18  # type: ignore[import-not-found]
-		# Try new API first
-		try:
-			model = resnet18(weights="IMAGENET1K_V1" if pretrained else None)
-		except TypeError:
-			# Fallback to old API
-			model = resnet18(pretrained=pretrained)
-		return model
-	except Exception as exc:
-		raise RuntimeError(f"Failed to construct resnet18: {exc}")
+    Supported: resnet18, resnet34, resnet50.
+    If unsupported (e.g., resnet10), falls back to resnet18.
+    """
+    try:
+        from torchvision import models  # type: ignore[import-not-found]
+        name = encoder_name.lower()
+        if name not in {"resnet18", "resnet34", "resnet50"}:
+            name = "resnet18"
+        ctor = getattr(models, name)
+        # Try new API with weights enum first; fall back to old API
+        try:
+            weights = None
+            if pretrained:
+                enum_name_map = {
+                    "resnet18": "ResNet18_Weights",
+                    "resnet34": "ResNet34_Weights",
+                    "resnet50": "ResNet50_Weights",
+                }
+                enum_name = enum_name_map.get(name)
+                weights_enum = getattr(models, enum_name, None) if enum_name else None
+                if weights_enum is not None and hasattr(weights_enum, "DEFAULT"):
+                    weights = getattr(weights_enum, "DEFAULT")
+            model = ctor(weights=weights)
+        except TypeError:
+            # Older API
+            model = ctor(pretrained=pretrained)
+        return model
+    except Exception as exc:
+        raise RuntimeError(f"Failed to construct {encoder_name}: {exc}")
 
 
 class DecoderHead(nn.Module):
@@ -59,9 +74,10 @@ class CifarCoarseRegressor(nn.Module):
 		dropout_p: float = 0.1,
 		hidden_features: int = 256,
 		use_cbam: bool = False,
+		encoder_name: str = "resnet18",
 	) -> None:
 		super().__init__()
-		backbone = _make_resnet18(pretrained=pretrained_backbone)
+		backbone = _make_resnet(encoder_name=encoder_name, pretrained=pretrained_backbone)
 
 		# Keep references to feature blocks for custom forward (to insert CBAM before avgpool)
 		if not hasattr(backbone, "fc"):

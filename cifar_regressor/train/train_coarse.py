@@ -6,6 +6,7 @@ import math
 import os
 import random
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, Dict, Tuple
 
 import numpy as np  # type: ignore[import-not-found]
@@ -36,6 +37,7 @@ class TrainConfig:
 	num_classes: int = 20
 	pretrained_backbone: bool = True
 	use_cbam: bool = False
+	encoder_name: str = "resnet18"
 	hidden_features: int = 256
 	dropout_p: float = 0.1
 
@@ -44,6 +46,7 @@ class TrainConfig:
 	epochs: int = 30
 	learning_rate: float = 3e-4
 	weight_decay: float = 5e-2
+	backbone_lr_mult: float = 0.1
 	num_workers: int = 4
 	log_interval: int = 50
 	val_split: float = 0.1
@@ -163,12 +166,24 @@ def build_model(cfg: TrainConfig) -> nn.Module:
 		hidden_features=cfg.hidden_features,
 		dropout_p=cfg.dropout_p,
 		use_cbam=cfg.use_cbam,
+		encoder_name=cfg.encoder_name,
 	)
 	return model
 
 
 def build_optimizer(cfg: TrainConfig, model: nn.Module) -> torch.optim.Optimizer:
-	return torch.optim.AdamW(model.parameters(), lr=cfg.learning_rate, weight_decay=cfg.weight_decay)
+	# 参数组：预训练骨干较低学习率，CBAM/decoder使用基础学习率
+	backbone_params = list(model.stem.parameters()) + \
+		list(model.layer1.parameters()) + list(model.layer2.parameters()) + \
+		list(model.layer3.parameters()) + list(model.layer4.parameters())
+	head_params = list(model.decoder.parameters())
+	if getattr(model, "use_cbam", False):
+		head_params += list(model.cbam.parameters())
+	param_groups = [
+		{"params": backbone_params, "lr": cfg.learning_rate * cfg.backbone_lr_mult},
+		{"params": head_params, "lr": cfg.learning_rate},
+	]
+	return torch.optim.AdamW(param_groups, lr=cfg.learning_rate, weight_decay=cfg.weight_decay)
 
 
 def build_scheduler(cfg: TrainConfig, optimizer: torch.optim.Optimizer):
@@ -257,16 +272,46 @@ def main() -> None:
 	parser = argparse.ArgumentParser(description="Train ResNet18+Head on CIFAR-100 coarse labels")
 	parser.add_argument("--config", type=str, default="/data/litengmo/ml-test/cifar_regressor/config/coarse_default.json")
 	parser.add_argument("--gpu", type=int, default=None, help="选择使用的 GPU 编号，如 0、1、7；不填则按 config.device")
+	parser.add_argument("--print-config", action="store_true", help="打印训练配置与 CBAM 启用状态")
 	args = parser.parse_args()
 
 	cfg = load_config(args.config)
 	# 覆盖设备为指定 GPU（优先级高于配置文件）
 	if args.gpu is not None:
 		cfg.device = f"cuda:{args.gpu}"
+
+	if args.print_config:
+		print("===== Train Config =====")
+		print(json.dumps(cfg.__dict__, ensure_ascii=False, indent=2, sort_keys=True))
+		print(f"CBAM requested (config.use_cbam): {cfg.use_cbam}")
+		print("========================")
 	set_seed(cfg.seed)
+
+	# 运行目录：每次训练一个子目录，用于日志与TensorBoard
+	run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+	run_dir = os.path.join(cfg.checkpoint_dir, run_id)
+	os.makedirs(run_dir, exist_ok=True)
+	# 保存配置副本
+	with open(os.path.join(run_dir, "config.json"), "w", encoding="utf-8") as f:
+		json.dump(cfg.__dict__, f, ensure_ascii=False, indent=2, sort_keys=True)
+	print(f"Run directory: {run_dir}")
+
+	# 尝试创建 TensorBoard Writer（若不可用则跳过）
+	writer = None
+	try:
+		from torch.utils.tensorboard import SummaryWriter  # type: ignore
+		writer = SummaryWriter(log_dir=os.path.join(run_dir, "tb"))
+	except Exception:
+		writer = None
 
 	device = torch.device(cfg.device if torch.cuda.is_available() and "cuda" in cfg.device else "cpu")
 	model = build_model(cfg).to(device)
+	if args.print_config:
+		# 打印模型上是否实际启用了 CBAM（模型内的 use_cbam 与模块类型）
+		use_cbam_runtime = getattr(model, "use_cbam", False)
+		cbam_module = getattr(model, "cbam", None)
+		cbam_type = cbam_module.__class__.__name__ if cbam_module is not None else "None"
+		print(f"CBAM enabled (runtime): {use_cbam_runtime} | module: {cbam_type}")
 	criterion = nn.CrossEntropyLoss()
 	optimizer = build_optimizer(cfg, model)
 	scheduler = build_scheduler(cfg, optimizer)
@@ -275,6 +320,15 @@ def main() -> None:
 	train_loader, val_loader = build_loaders(cfg)
 
 	best_val_acc = -math.inf
+	# 训练日志（JSON）
+	history = {
+		"epoch": [],
+		"train_loss": [],
+		"train_acc": [],
+		"val_loss": [],
+		"val_acc": [],
+		"lr": [],
+	}
 	for epoch in range(1, cfg.epochs + 1):
 		train_loss, train_acc = train_one_epoch(
 			model,
@@ -292,6 +346,26 @@ def main() -> None:
 
 		print(f"epoch {epoch} done - train_loss: {train_loss:.4f} train_acc: {train_acc:.4f} val_loss: {val_loss:.4f} val_acc: {val_acc:.4f}")
 
+		# 记录学习率（取参数组中最大的lr以代表本轮）
+		curr_lr = max(pg.get("lr", 0.0) for pg in optimizer.param_groups)
+		# 写入TensorBoard
+		if writer is not None:
+			writer.add_scalar("train/loss", train_loss, epoch)
+			writer.add_scalar("train/acc", train_acc, epoch)
+			writer.add_scalar("val/loss", val_loss, epoch)
+			writer.add_scalar("val/acc", val_acc, epoch)
+			writer.add_scalar("opt/lr", curr_lr, epoch)
+
+		# 累计到JSON日志并落盘
+		history["epoch"].append(epoch)
+		history["train_loss"].append(train_loss)
+		history["train_acc"].append(train_acc)
+		history["val_loss"].append(val_loss)
+		history["val_acc"].append(val_acc)
+		history["lr"].append(curr_lr)
+		with open(os.path.join(run_dir, "train_log.json"), "w", encoding="utf-8") as f:
+			json.dump(history, f, ensure_ascii=False, indent=2)
+
 		is_best = val_acc > best_val_acc
 		if is_best:
 			best_val_acc = val_acc
@@ -304,8 +378,15 @@ def main() -> None:
 			"config": cfg.__dict__,
 		}
 		save_checkpoint(state, is_best=is_best, out_dir=cfg.checkpoint_dir)
+		# 同步保存一份到 run_dir，便于溯源（可选）
+		save_checkpoint(state, is_best=is_best, out_dir=run_dir)
 
-	print("training finished. best_val_acc=%.4f" % best_val_acc)
+	# 关闭TensorBoard
+	if writer is not None:
+		writer.flush()
+		writer.close()
+
+	print("training finished. best_val_acc=%.4f | logs at: %s" % (best_val_acc, run_dir))
 
 
 if __name__ == "__main__":

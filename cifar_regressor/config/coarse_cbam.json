@@ -6,7 +6,7 @@
 	"pretrained_backbone": true,
 	"use_cbam": true,
 	"hidden_features": 256,
-	"dropout_p": 0.1,
+	"dropout_p": 0.25,
 
 	"batch_size": 128,
 	"epochs": 30,

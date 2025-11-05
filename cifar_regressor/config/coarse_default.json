@@ -1,10 +1,11 @@
 {
 	"dataset_root": "/data/litengmo/ml-test/cifar-100-python",
-	"checkpoint_dir": "/data/litengmo/ml-test/cifar_regressor/checkpoints/coarse_resnet18_cbam",
+	"checkpoint_dir": "/data/litengmo/ml-test/cifar_regressor/checkpoints/coarse_resnet50",
 
 	"num_classes": 20,
 	"pretrained_backbone": true,
 	"use_cbam": true,
+	"encoder_name": "resnet50",
 	"hidden_features": 256,
 	"dropout_p": 0.1,
 
@@ -12,6 +13,7 @@
 	"epochs": 30,
 	"learning_rate": 0.0003,
 	"weight_decay": 0.05,
+	"backbone_lr_mult": 0.1,
 	"num_workers": 4,
 	"log_interval": 50,
 	"val_split": 0.1,

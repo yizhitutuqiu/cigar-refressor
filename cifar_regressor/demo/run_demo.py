@@ -99,6 +99,7 @@ def main() -> None:
 		"hidden_features": 256,
 		"dropout_p": 0.1,
 		"use_cbam": False,
+		"encoder_name": "resnet18",
 	}
 	ckpt = None
 	if args.checkpoint and os.path.isfile(args.checkpoint):
@@ -110,6 +111,7 @@ def main() -> None:
 				"hidden_features": int(cfg.get("hidden_features", model_cfg["hidden_features"])),
 				"dropout_p": float(cfg.get("dropout_p", model_cfg["dropout_p"])),
 				"use_cbam": bool(cfg.get("use_cbam", model_cfg["use_cbam"])),
+				"encoder_name": str(cfg.get("encoder_name", model_cfg["encoder_name"])),
 			})
 
 	model = CifarCoarseRegressor(
@@ -118,6 +120,7 @@ def main() -> None:
 		hidden_features=model_cfg["hidden_features"],
 		dropout_p=model_cfg["dropout_p"],
 		use_cbam=model_cfg["use_cbam"],
+		encoder_name=model_cfg["encoder_name"],
 	)
 	model.eval().to(device)
 	if ckpt is not None:

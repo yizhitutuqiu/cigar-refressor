@@ -37,22 +37,53 @@
 - 所有训练与评测脚本会从 checkpoint 的 `config` 中还原模型结构，保证推理一致。
 
 ### 数据
-- CIFAR-100（Python 版）目录：`/data/litengmo/ml-test/cifar-100-python`（含 `train/test/meta`）
+- CIFAR-100（Python 版）目录：`./cifar-100-python`（含 `train/test/meta`）
+
+#### 数据集下载与存储指导
+- 下载与解压（在仓库根目录执行）：
+```bash
+curl -L -o cifar-100-python.tar.gz https://www.cs.toronto.edu/~kriz/cifar-100-python.tar.gz
+tar -xzf cifar-100-python.tar.gz
+```
+
+- 目录结构应为：
+```
+./
+  ├─ cifar-100-python/
+  │   ├─ train      # 50,000 条训练样本（pickle）
+  │   ├─ test       # 10,000 条测试样本（pickle）
+  │   └─ meta       # 标签名称等元信息
+  └─ cifar-100-python.tar.gz
+```
+
+- 完整性校验（使用内置脚本）：
+```bash
+python3 ./check_cifar100.py --root .
+```
+输出应为 “CIFAR-100 完整性检查: 通过”。
+
+- 断点续传（下载较慢时可用）：
+```bash
+curl -L -C - -o ./cifar-100-python.tar.gz \
+  https://www.cs.toronto.edu/~kriz/cifar-100-python.tar.gz
+```
+
+- 配置路径匹配：`cifar_regressor/config/*` 中的 `dataset_root` 默认指向 `./cifar-100-python`。如果数据放在其他位置，请同步修改对应配置项。
 
 ### 训练
 - coarse-only（绝对路径示例，指定 7 号卡）
 ```bash
 conda activate hsmr
-python3 /data/litengmo/ml-test/cifar_regressor/train/train_coarse.py \
-  --config /data/litengmo/ml-test/cifar_regressor/config/coarse_default.json \
+python3 ./cifar_regressor/train/train_coarse.py \
+  --config ./cifar_regressor/config/coarse_default.json \
   --gpu 7 \
   --print-config
 ```
 - 层级版（coarse+fine）
 ```bash
 conda activate hsmr
-python3 /data/litengmo/ml-test/cifar_regressor/train/train_hierarchical.py \
-  --config /data/litengmo/ml-test/cifar_regressor/config/hierarchical_default.json \
+python3 ./cifar_regressor/train/train_hierarchical.py \
+  --config ./cifar_regressor/config/hierarchical_default.json \
   --gpu 7 \
   --print-config
 ```
@@ -63,20 +94,20 @@ python3 /data/litengmo/ml-test/cifar_regressor/train/train_hierarchical.py \
 - coarse-only 模型
 ```bash
 conda activate hsmr
-python3 /data/litengmo/ml-test/cifar_regressor/tools/evaluate_coarse.py \
-  --dataset_root /data/litengmo/ml-test/cifar-100-python \
-  --checkpoint_dir /data/litengmo/ml-test/cifar_regressor/checkpoints/coarse_resnet50 \
-  --output_root /data/litengmo/ml-test/cifar_regressor/test \
+python3 ./cifar_regressor/tools/evaluate_coarse.py \
+  --dataset_root ./cifar-100-python \
+  --checkpoint_dir ./cifar_regressor/checkpoints/coarse_resnet50 \
+  --output_root ./cifar_regressor/test \
   --batch_size 256 --num_workers 4 \
   --gpu 7
 ```
 - 层级模型（coarse+fine 指标一起输出）
 ```bash
 conda activate hsmr
-python3 /data/litengmo/ml-test/cifar_regressor/tools/evaluate_hierarchical.py \
-  --dataset_root /data/litengmo/ml-test/cifar-100-python \
-  --checkpoint_dir /data/litengmo/ml-test/cifar_regressor/checkpoints/hier_vit_small \
-  --output_root /data/litengmo/ml-test/cifar_regressor/test \
+python3 ./cifar_regressor/tools/evaluate_hierarchical.py \
+  --dataset_root ./cifar-100-python \
+  --checkpoint_dir ./cifar_regressor/checkpoints/hier_vit_small \
+  --output_root ./cifar_regressor/test \
   --batch_size 256 --num_workers 4 \
   --gpu 7
 ```
@@ -84,12 +115,12 @@ python3 /data/litengmo/ml-test/cifar_regressor/tools/evaluate_hierarchical.py \
 ### Demo（随机样本推理与可视化）
 ```bash
 conda activate hsmr
-python3 /data/litengmo/ml-test/cifar_regressor/demo/run_demo.py \
-  --dataset_root /data/litengmo/ml-test/cifar-100-python \
-  --output_dir /data/litengmo/ml-test/cifar_regressor/demo/outputs \
-  --checkpoint /data/litengmo/ml-test/cifar_regressor/checkpoints/coarse_resnet18_cbam/best.pth
+python3 ./cifar_regressor/demo/run_demo.py \
+  --dataset_root ./cifar-100-python \
+  --output_dir ./cifar_regressor/demo/outputs \
+  --checkpoint ./cifar_regressor/checkpoints/coarse_resnet18_cbam/best.pth
 ```
 
 ### 备注
 - `encoder_name` 支持：`resnet18/resnet34/resnet50/vit_small_patch16_224`
-- `pretrained_backbone: true` 将下载并缓存预训练权重（首次较慢，缓存路径 `/data/litengmo/.cache/torch/`）
+- `pretrained_backbone: true` 将下载并缓存预训练权重（首次较慢，缓存路径通常为 `~/.cache/torch/`）

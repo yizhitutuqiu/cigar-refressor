@@ -172,13 +172,20 @@ def build_model(cfg: TrainConfig) -> nn.Module:
 
 
 def build_optimizer(cfg: TrainConfig, model: nn.Module) -> torch.optim.Optimizer:
-	# 参数组：预训练骨干较低学习率，CBAM/decoder使用基础学习率
-	backbone_params = list(model.stem.parameters()) + \
-		list(model.layer1.parameters()) + list(model.layer2.parameters()) + \
-		list(model.layer3.parameters()) + list(model.layer4.parameters())
-	head_params = list(model.decoder.parameters())
-	if getattr(model, "use_cbam", False):
-		head_params += list(model.cbam.parameters())
+	# 参数组：预训练骨干较低学习率，CBAM/decoder 使用基础学习率
+	if hasattr(model, "vit"):
+		# ViT 分支
+		backbone_params = list(model.vit.parameters())
+		head_params = list(model.decoder.parameters())
+	else:
+		# ResNet 分支
+		backbone_params = list(model.stem.parameters()) + \
+			list(model.layer1.parameters()) + list(model.layer2.parameters()) + \
+			list(model.layer3.parameters()) + list(model.layer4.parameters())
+		head_params = list(model.decoder.parameters())
+		if getattr(model, "use_cbam", False):
+			head_params += list(model.cbam.parameters())
+
 	param_groups = [
 		{"params": backbone_params, "lr": cfg.learning_rate * cfg.backbone_lr_mult},
 		{"params": head_params, "lr": cfg.learning_rate},

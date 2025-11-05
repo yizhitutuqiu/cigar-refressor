@@ -1,11 +1,11 @@
 {
 	"dataset_root": "/data/litengmo/ml-test/cifar-100-python",
-	"checkpoint_dir": "/data/litengmo/ml-test/cifar_regressor/checkpoints/coarse_resnet50",
+	"checkpoint_dir": "/data/litengmo/ml-test/cifar_regressor/checkpoints/coarse-vit-small",
 
 	"num_classes": 20,
 	"pretrained_backbone": true,
 	"use_cbam": true,
-	"encoder_name": "resnet50",
+	"encoder_name": "vit_small_patch16_224",
 	"hidden_features": 256,
 	"dropout_p": 0.1,
 

@@ -2,7 +2,13 @@ from __future__ import annotations
 
 from typing import Dict, Any
 
+import os
+import json
 import random
+from datetime import datetime
+
+import numpy as np  # type: ignore[import-not-found]
+from PIL import Image  # type: ignore[import-not-found]
 from torchvision import transforms
 
 
@@ -80,5 +86,80 @@ def build_train_transform(aug: Dict[str, Any] | None, image_size: int = 224) -> 
 	ops.append(transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]))
 
 	return transforms.Compose(ops)
+
+
+def _load_random_image(dataset_root: str, split: str = "test") -> Image.Image:
+	import pickle
+	with open(os.path.join(dataset_root, split), "rb") as f:
+		data = pickle.load(f, encoding="latin1")
+	arr = data["data"]
+	idx = random.randrange(len(arr))
+	row = arr[idx]
+	img = np.reshape(row, (3, 32, 32))
+	img = np.transpose(img, (1, 2, 0))
+	return Image.fromarray(img.astype(np.uint8))
+
+
+def _tensor_to_pil(t) -> Image.Image:
+	# inverse of Normalize ImageNet stats
+	mean = np.array([0.485, 0.456, 0.406]).reshape(3, 1, 1)
+	std = np.array([0.229, 0.224, 0.225]).reshape(3, 1, 1)
+	arr = t.detach().cpu().numpy()
+	arr = (arr * std + mean).clip(0.0, 1.0)
+	arr = (arr * 255.0).round().astype(np.uint8)
+	arr = np.transpose(arr, (1, 2, 0))
+	return Image.fromarray(arr)
+
+
+def _make_side_by_side(left: Image.Image, right: Image.Image) -> Image.Image:
+	left = left.convert("RGB")
+	right = right.convert("RGB")
+	h = max(left.height, right.height)
+	canvas = Image.new("RGB", (left.width + right.width, h), (0, 0, 0))
+	canvas.paste(left, (0, 0))
+	canvas.paste(right, (left.width, 0))
+	return canvas
+
+
+def main():
+	import argparse
+
+	# resolve project root for defaults
+	PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+	default_config = os.path.join(PROJECT_ROOT, "cifar_regressor", "config", "hierarchical_default.json")
+	default_dataset = os.path.join(PROJECT_ROOT, "cifar-100-python")
+	default_out = os.path.join(PROJECT_ROOT, "cifar_regressor", "demo", "aug_demo")
+
+	parser = argparse.ArgumentParser(description="Augmentation demo: apply train-time aug to a random CIFAR-100 image")
+	parser.add_argument("--config", type=str, default=default_config, help="包含 aug 段的配置文件路径")
+	parser.add_argument("--dataset_root", type=str, default=default_dataset)
+	parser.add_argument("--split", type=str, default="test", choices=["train", "test"]) 
+	parser.add_argument("--output_dir", type=str, default=default_out)
+	args = parser.parse_args()
+
+	with open(args.config, "r", encoding="utf-8") as f:
+		cfg = json.load(f)
+	aug_cfg = cfg.get("aug", {})
+
+	# build transforms
+	train_tf = build_train_transform(aug_cfg, image_size=224)
+	# load a random image
+	img = _load_random_image(args.dataset_root, split=args.split)
+	img_resized = img.resize((224, 224), Image.BILINEAR)
+	aug_tensor = train_tf(img)
+	aug_img = _tensor_to_pil(aug_tensor)
+
+	os.makedirs(args.output_dir, exist_ok=True)
+	stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+	canvas = _make_side_by_side(img_resized, aug_img)
+	out_path = os.path.join(args.output_dir, f"aug_demo_{stamp}.png")
+	canvas.save(out_path)
+	with open(os.path.join(args.output_dir, f"aug_demo_{stamp}.json"), "w", encoding="utf-8") as f:
+		json.dump({"config": args.config, "dataset_root": args.dataset_root, "split": args.split, "aug": aug_cfg, "output": out_path}, f, ensure_ascii=False, indent=2)
+	print(f"saved: {out_path}")
+
+
+if __name__ == "__main__":
+	main()
 
 

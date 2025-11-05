@@ -2,3 +2,5 @@
 /cifar_regressor/checkpoints/
 /.ssh/
 /cifar_regressor/test
+/cifar_regressor/demo/outputs
+/cifar_regressor/demo/aug_demo

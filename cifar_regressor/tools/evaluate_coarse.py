@@ -121,10 +121,10 @@ def build_model_from_checkpoint(ckpt_path: str, device: torch.device) -> CifarCo
 
 def main() -> None:
 	parser = argparse.ArgumentParser(description="Evaluate CIFAR-100 coarse on test set using a checkpoint")
-	parser.add_argument("--dataset_root", type=str, default="/data/litengmo/ml-test/cifar-100-python")
+	parser.add_argument("--dataset_root", type=str, default="./cifar-100-python")
 	parser.add_argument("--checkpoint_dir", type=str, default="", help="checkpoint 子目录路径，包含 best.pth")
 	parser.add_argument("--checkpoint_path", type=str, default="", help="直接指定 best.pth 的绝对路径（优先）")
-	parser.add_argument("--output_root", type=str, default="/data/litengmo/ml-test/cifar_regressor/test")
+	parser.add_argument("--output_root", type=str, default="./cifar_regressor/test")
 	parser.add_argument("--batch_size", type=int, default=256)
 	parser.add_argument("--num_workers", type=int, default=4)
 	parser.add_argument("--device", type=str, default="cuda")

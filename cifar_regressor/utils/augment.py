@@ -31,6 +31,7 @@ def build_train_transform(aug: Dict[str, Any] | None, image_size: int = 224) -> 
 	"""Build train-time transform pipeline with configurable augmentations.
 
 	Supported options in `aug` (all optional, p=0 disables):
+	- use_val_preprocess: bool, true 时训练直接使用验证集的确定性预处理（无随机增强）
 	- hflip_p: float in [0,1]
 	- rotate_p: float; rotate_deg: float (max degrees, symmetric)
 	- affine_p: float; scale_min: float; scale_max: float; translate_frac: float (0..0.45)
@@ -39,6 +40,16 @@ def build_train_transform(aug: Dict[str, Any] | None, image_size: int = 224) -> 
 	Defaults are conservative and safe.
 	"""
 	aug = aug or {}
+	# deterministic path
+	if bool(aug.get("use_val_preprocess", False)):
+		mean = [0.485, 0.456, 0.406]
+		std = [0.229, 0.224, 0.225]
+		return transforms.Compose([
+			transforms.Resize(256),
+			transforms.CenterCrop(image_size),
+			transforms.ToTensor(),
+			transforms.Normalize(mean, std),
+		])
 	# defaults
 	hflip_p = float(aug.get("hflip_p", 0.5))
 	rotate_p = float(aug.get("rotate_p", 0.2))
@@ -126,9 +137,9 @@ def main():
 
 	# resolve project root for defaults
 	PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-	default_config = os.path.join(PROJECT_ROOT, "cifar_regressor", "config", "hierarchical_default.json")
-	default_dataset = os.path.join(PROJECT_ROOT, "cifar-100-python")
-	default_out = os.path.join(PROJECT_ROOT, "cifar_regressor", "demo", "aug_demo")
+	default_config = "./cifar_regressor/config/hierarchical_default.json"
+	default_dataset = "./cifar-100-python"
+	default_out = "./cifar_regressor/demo/aug_demo"
 
 	parser = argparse.ArgumentParser(description="Augmentation demo: apply train-time aug to a random CIFAR-100 image")
 	parser.add_argument("--config", type=str, default=default_config, help="包含 aug 段的配置文件路径")

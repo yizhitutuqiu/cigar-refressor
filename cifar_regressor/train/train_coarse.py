@@ -277,7 +277,7 @@ def load_config(path: str) -> TrainConfig:
 
 def main() -> None:
 	parser = argparse.ArgumentParser(description="Train ResNet18+Head on CIFAR-100 coarse labels")
-	parser.add_argument("--config", type=str, default="/data/litengmo/ml-test/cifar_regressor/config/coarse_default.json")
+	parser.add_argument("--config", type=str, default="./cifar_regressor/config/coarse_default.json")
 	parser.add_argument("--gpu", type=int, default=None, help="选择使用的 GPU 编号，如 0、1、7；不填则按 config.device")
 	parser.add_argument("--print-config", action="store_true", help="打印训练配置与 CBAM 启用状态")
 	args = parser.parse_args()

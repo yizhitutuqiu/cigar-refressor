@@ -1,6 +1,6 @@
 {
-	"dataset_root": "/data/litengmo/ml-test/cifar-100-python",
-	"checkpoint_dir": "/data/litengmo/ml-test/cifar_regressor/checkpoints/coarse-vit-small",
+	"dataset_root": "./cifar-100-python",
+	"checkpoint_dir": "./cifar_regressor/checkpoints/coarse-vit-small",
 
 	"num_classes": 20,
 	"pretrained_backbone": true,
@@ -27,6 +27,7 @@
 	},
 
 	"aug": {
+		"use_val_preprocess": false,
 		"hflip_p": 0.5,
 		"rotate_p": 0.2,
 		"rotate_deg": 15,

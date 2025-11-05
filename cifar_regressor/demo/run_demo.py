@@ -78,9 +78,9 @@ def annotate_image(img: Image.Image, text: str) -> Image.Image:
 
 def main() -> None:
 	parser = argparse.ArgumentParser(description="CIFAR-100 coarse demo: random test sample inference")
-	parser.add_argument("--dataset_root", type=str, default="/data/litengmo/ml-test/cifar-100-python")
+	parser.add_argument("--dataset_root", type=str, default="./cifar-100-python")
 	parser.add_argument("--checkpoint", type=str, default="")
-	parser.add_argument("--output_dir", type=str, default="/data/litengmo/ml-test/cifar_regressor/demo/outputs")
+	parser.add_argument("--output_dir", type=str, default="./cifar_regressor/demo/outputs")
 	parser.add_argument("--device", type=str, default="cuda")
 	args = parser.parse_args()
 

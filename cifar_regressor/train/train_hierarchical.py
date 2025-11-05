@@ -251,7 +251,7 @@ def load_config(path: str) -> TrainConfig:
 
 def main() -> None:
 	parser = argparse.ArgumentParser(description="Hierarchical training: coarse+fine with FiLM")
-	parser.add_argument("--config", type=str, default="/data/litengmo/ml-test/cifar_regressor/config/hierarchical_default.json")
+	parser.add_argument("--config", type=str, default="./cifar_regressor/config/hierarchical_default.json")
 	parser.add_argument("--gpu", type=int, default=None, help="选择使用的 GPU 编号")
 	parser.add_argument("--print-config", action="store_true")
 	args = parser.parse_args()

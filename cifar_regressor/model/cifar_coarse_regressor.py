@@ -40,6 +40,37 @@ def _make_resnet(encoder_name: str = "resnet18", pretrained: bool = False) -> nn
         raise RuntimeError(f"Failed to construct {encoder_name}: {exc}")
 
 
+def _canonical_vit_name(name: str) -> str:
+	name = name.lower().replace("-", "_")
+	# 常见别名统一到 timm 的 vit_small_patch16_224
+	aliases = {"vit_s", "vit_s16", "vit_small", "vit_small_16", "vit_small_patch16_224"}
+	return "vit_small_patch16_224" if name in aliases or "vit_small" in name or ("vit" in name and "small" in name) else name
+
+
+def _make_vit(encoder_name: str = "vit_small_patch16_224", pretrained: bool = True) -> Tuple[nn.Module, int]:
+	"""Create a ViT backbone via timm. Returns (model, feature_dim).
+
+	Requires `timm` package. The model will output feature vectors (N, D).
+	"""
+	try:
+		import timm  # type: ignore[import-not-found]
+	except Exception as exc:
+		raise RuntimeError(
+			f"ViT encoder requires 'timm'. Please install it (e.g., pip install timm). Error: {exc}"
+		)
+
+	model_name = _canonical_vit_name(encoder_name)
+	try:
+		# num_classes=0 -> head removed; forward returns pooled features
+		vit = timm.create_model(model_name, pretrained=pretrained, num_classes=0)
+		feat_dim = getattr(vit, "num_features", None) or getattr(vit, "embed_dim", None)
+		if feat_dim is None:
+			raise RuntimeError("Failed to infer ViT feature dim (num_features/embed_dim not found)")
+		return vit, int(feat_dim)
+	except Exception as exc:
+		raise RuntimeError(f"Failed to construct ViT '{encoder_name}': {exc}")
+
+
 class DecoderHead(nn.Module):
 	"""A small MLP decoder head for 20 coarse classes.
 
@@ -77,23 +108,33 @@ class CifarCoarseRegressor(nn.Module):
 		encoder_name: str = "resnet18",
 	) -> None:
 		super().__init__()
-		backbone = _make_resnet(encoder_name=encoder_name, pretrained=pretrained_backbone)
 
-		# Keep references to feature blocks for custom forward (to insert CBAM before avgpool)
-		if not hasattr(backbone, "fc"):
-			raise RuntimeError("Unexpected ResNet18 structure: missing attribute 'fc'")
-		in_features = backbone.fc.in_features  # typically 512
-		self.stem = nn.Sequential(backbone.conv1, backbone.bn1, backbone.relu, backbone.maxpool)
-		self.layer1 = backbone.layer1
-		self.layer2 = backbone.layer2
-		self.layer3 = backbone.layer3
-		self.layer4 = backbone.layer4
-		self.avgpool = backbone.avgpool
-		self.use_cbam = use_cbam
-		self.cbam = CBAM(in_features) if use_cbam else nn.Identity()
+		name_l = encoder_name.lower()
+		self.encoder_name = encoder_name
+		self.encoder_type = "vit" if "vit" in name_l else "resnet"
+		self.use_cbam = bool(use_cbam) if self.encoder_type == "resnet" else False
+
+		if self.encoder_type == "resnet":
+			backbone = _make_resnet(encoder_name=encoder_name, pretrained=pretrained_backbone)
+			if not hasattr(backbone, "fc"):
+				raise RuntimeError("Unexpected ResNet structure: missing attribute 'fc'")
+			in_features = backbone.fc.in_features
+			self.stem = nn.Sequential(backbone.conv1, backbone.bn1, backbone.relu, backbone.maxpool)
+			self.layer1 = backbone.layer1
+			self.layer2 = backbone.layer2
+			self.layer3 = backbone.layer3
+			self.layer4 = backbone.layer4
+			self.avgpool = backbone.avgpool
+			self.cbam = CBAM(in_features) if self.use_cbam else nn.Identity()
+			self.backbone = backbone  # keep ref for completeness
+			features_dim = in_features
+		else:
+			vit, feat_dim = _make_vit(encoder_name=encoder_name, pretrained=pretrained_backbone)
+			self.vit = vit
+			features_dim = feat_dim
 
 		self.decoder = DecoderHead(
-			in_features=in_features,
+			in_features=features_dim,
 			hidden_features=hidden_features,
 			num_classes=num_classes,
 			dropout_p=dropout_p,
@@ -109,16 +150,20 @@ class CifarCoarseRegressor(nn.Module):
 		logits: Tensor of shape (N, C)
 		probs:  Tensor of shape (N, C), softmax over logits
 		"""
-		# Custom forward to optionally apply CBAM on spatial features
-		x = self.stem(x)
-		x = self.layer1(x)
-		x = self.layer2(x)
-		x = self.layer3(x)
-		x = self.layer4(x)
-		if self.use_cbam:
-			x = self.cbam(x)
-		x = self.avgpool(x)
-		features = torch.flatten(x, 1)
+		if self.encoder_type == "resnet":
+			# CNN path with optional CBAM
+			x = self.stem(x)
+			x = self.layer1(x)
+			x = self.layer2(x)
+			x = self.layer3(x)
+			x = self.layer4(x)
+			if self.use_cbam:
+				x = self.cbam(x)
+			x = self.avgpool(x)
+			features = torch.flatten(x, 1)
+		else:
+			# ViT path (features already pooled when num_classes=0 in timm)
+			features = self.vit(x)
 		logits = self.decoder(features)
 		probs = self.softmax(logits)
 		return logits, probs

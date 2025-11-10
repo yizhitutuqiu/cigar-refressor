@@ -42,9 +42,14 @@ def _make_resnet(encoder_name: str = "resnet18", pretrained: bool = False) -> nn
 
 def _canonical_vit_name(name: str) -> str:
 	name = name.lower().replace("-", "_")
-	# 常见别名统一到 timm 的 vit_small_patch16_224
-	aliases = {"vit_s", "vit_s16", "vit_small", "vit_small_16", "vit_small_patch16_224"}
-	return "vit_small_patch16_224" if name in aliases or "vit_small" in name or ("vit" in name and "small" in name) else name
+	# 常见别名统一到 timm 的命名
+	small_aliases = {"vit_s", "vit_s16", "vit_small", "vit_small_16", "vit_small_patch16_224"}
+	base_aliases = {"vit_b", "vit_b16", "vit_base", "vit_base_16", "vit_base_patch16_224"}
+	if name in small_aliases or ("vit" in name and "small" in name):
+		return "vit_small_patch16_224"
+	if name in base_aliases or ("vit" in name and "base" in name):
+		return "vit_base_patch16_224"
+	return name
 
 
 def _make_vit(encoder_name: str = "vit_small_patch16_224", pretrained: bool = True) -> Tuple[nn.Module, int]:

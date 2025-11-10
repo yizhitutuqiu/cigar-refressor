@@ -1,8 +1,8 @@
 {
 	"dataset_root": "./cifar-100-python",
-	"checkpoint_dir": "./cifar_regressor/checkpoints/hier_vit_small_aug",
+	"checkpoint_dir": "./cifar_regressor/checkpoints/hier_vit_base",
 
-	"encoder_name": "vit_small_patch16_224",
+	"encoder_name": "vit_base_patch16_224",
 	"pretrained_backbone": true,
 	"use_cbam": false,
 
@@ -30,18 +30,16 @@
 	"scheduler": { "type": "cosine", "eta_min": 1e-6 },
 
 	"aug": {
-		"use_val_preprocess": false,
-		"crop_scale_min": 0.9,
-		"crop_scale_max": 1.0,
-		"hflip_p": 0.3,
-		"rotate_p": 0.1,
-		"rotate_deg": 8,
-		"affine_p": 0.1,
-		"scale_min": 0.97,
-		"scale_max": 1.03,
-		"translate_frac": 0.03,
-		"erase_p": 0.01,
-		"erase_scale": [0.01, 0.03],
+		"use_val_preprocess": true,
+		"hflip_p": 0,
+		"rotate_p": 0,
+		"rotate_deg": 15,
+		"affine_p": 0,
+		"scale_min": 0.9,
+		"scale_max": 1.1,
+		"translate_frac": 0,
+		"erase_p": 0,
+		"erase_scale": [0.02, 0.1],
 		"erase_ratio": [0.3, 3.3]
 	}
 }

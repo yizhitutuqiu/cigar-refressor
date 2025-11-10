@@ -51,18 +51,22 @@ def build_train_transform(aug: Dict[str, Any] | None, image_size: int = 224) -> 
 			transforms.Normalize(mean, std),
 		])
 	# defaults
+	crop_scale_min = float(aug.get("crop_scale_min", 0.90))
+	crop_scale_max = float(aug.get("crop_scale_max", 1.00))
 	hflip_p = float(aug.get("hflip_p", 0.5))
-	rotate_p = float(aug.get("rotate_p", 0.2))
-	rotate_deg = float(aug.get("rotate_deg", 15.0))
-	affine_p = float(aug.get("affine_p", 0.2))
-	scale_min = float(aug.get("scale_min", 0.9))
-	scale_max = float(aug.get("scale_max", 1.1))
-	translate_frac = float(aug.get("translate_frac", 0.1))  # per-dim fraction of image size
-	erase_p = float(aug.get("erase_p", 0.0))
-	erase_scale = aug.get("erase_scale", [0.02, 0.1])
+	rotate_p = float(aug.get("rotate_p", 0.1))
+	rotate_deg = float(aug.get("rotate_deg", 8.0))
+	affine_p = float(aug.get("affine_p", 0.1))
+	scale_min = float(aug.get("scale_min", 0.97))
+	scale_max = float(aug.get("scale_max", 1.03))
+	translate_frac = float(aug.get("translate_frac", 0.03))  # per-dim fraction of image size
+	erase_p = float(aug.get("erase_p", 0.01))
+	erase_scale = aug.get("erase_scale", [0.01, 0.03])
 	erase_ratio = aug.get("erase_ratio", [0.3, 3.3])
 
 	# clamp sensible bounds
+	crop_scale_min = max(0.5, min(crop_scale_min, 1.0))
+	crop_scale_max = max(crop_scale_min, min(crop_scale_max, 1.0))
 	scale_min = max(0.5, min(scale_min, 1.5))
 	scale_max = max(scale_min, min(scale_max, 1.5))
 	translate_frac = max(0.0, min(translate_frac, 0.45))
@@ -70,7 +74,7 @@ def build_train_transform(aug: Dict[str, Any] | None, image_size: int = 224) -> 
 
 	ops = []
 	# base resize/crop to match encoder input
-	ops.append(transforms.RandomResizedCrop(image_size, scale=(0.6, 1.0)))
+	ops.append(transforms.RandomResizedCrop(image_size, scale=(crop_scale_min, crop_scale_max)))
 
 	# flips
 	ops.append(WithProbability(transforms.RandomHorizontalFlip(p=1.0), p=hflip_p))

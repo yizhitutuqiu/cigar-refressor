@@ -45,10 +45,13 @@ def _canonical_vit_name(name: str) -> str:
 	# 常见别名统一到 timm 的命名
 	small_aliases = {"vit_s", "vit_s16", "vit_small", "vit_small_16", "vit_small_patch16_224"}
 	base_aliases = {"vit_b", "vit_b16", "vit_base", "vit_base_16", "vit_base_patch16_224"}
+	huge_aliases = {"vit_h", "vit_h14", "vit_huge", "vit_huge_14", "vit_huge_patch14_224"}
 	if name in small_aliases or ("vit" in name and "small" in name):
 		return "vit_small_patch16_224"
 	if name in base_aliases or ("vit" in name and "base" in name):
 		return "vit_base_patch16_224"
+	if name in huge_aliases or ("vit" in name and "huge" in name):
+		return "vit_huge_patch14_224"
 	return name
 
 

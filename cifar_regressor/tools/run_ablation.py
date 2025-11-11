@@ -59,6 +59,11 @@ def build_config(
 	use_cbam: bool,
 	use_film: bool,
 ) -> Dict:
+	# 为大模型设置更保守的 batch_size（避免显存溢出）
+	default_bs = 128
+	enc_l = encoder_name.lower()
+	if "vit_huge" in enc_l or "vit_h" in enc_l:
+		default_bs = 16
 	return {
 		"dataset_root": dataset_root,
 		"checkpoint_dir": checkpoint_dir,
@@ -72,7 +77,7 @@ def build_config(
 		"use_film": use_film,
 		"film_hidden": 256,
 		"film_use_probs": True,
-		"batch_size": 128,
+		"batch_size": default_bs,
 		"epochs": 20,
 		"learning_rate": 3e-4,
 		"backbone_lr_mult": 0.1,
@@ -149,24 +154,40 @@ def main():
 		("resnet50", True),
 		("vit_small_patch16_224", False),  # CBAM 对 ViT 无效，固定 False
 		("vit_base_patch16_224", False),
+		("vit_huge_patch14_224", False),
 	]
 	film_flags = [True, False]
 
+	# 训练前检查：已存在的方案不再重复运行（以 ablation/<tag> 子目录是否存在为准）
+	existing = {
+		d for d in os.listdir(args.output_root) if os.path.isdir(os.path.join(args.output_root, d))
+	}
+	def make_tag(enc: str, cbam: bool, film: bool) -> str:
+		return f"{enc.replace('/', '_')}{'_cbam' if cbam else ''}{'_nofilm' if not film else ''}"
+	targets: List[Tuple[str, bool, bool]] = []
+	for enc, cbam in base_set:
+		for film in film_flags:
+			tag = make_tag(enc, cbam, film)
+			if tag in existing:
+				print(f"[SKIP] already exists: {tag}")
+				continue
+			targets.append((enc, cbam, film))
+	print(f"[INFO] total={len(base_set)*len(film_flags)}; existing={len(existing)}; to_run={len(targets)}")
+
 	results: List[Dict] = []
-	for encoder_name, use_cbam in base_set:
-		for use_film in film_flags:
-			rc, tag = run_experiment(
-				encoder_name=encoder_name,
-				use_cbam=use_cbam,
-				use_film=use_film,
-				gpu=args.gpu,
-				dataset_root=args.dataset_root,
-				ckpt_root=args.output_root,
-				config_root=args.config_root,
-			)
-			results.append({"tag": tag, "returncode": rc})
-			# 简单的间隔，避免日志/缓存抖动
-			time.sleep(2.0)
+	for encoder_name, use_cbam, use_film in targets:
+		rc, tag = run_experiment(
+			encoder_name=encoder_name,
+			use_cbam=use_cbam,
+			use_film=use_film,
+			gpu=args.gpu,
+			dataset_root=args.dataset_root,
+			ckpt_root=args.output_root,
+			config_root=args.config_root,
+		)
+		results.append({"tag": tag, "returncode": rc})
+		# 简单的间隔，避免日志/缓存抖动
+		time.sleep(2.0)
 
 	# 保存 ablation 汇总
 	summary_path = os.path.join(args.output_root, f"ablation_summary_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")

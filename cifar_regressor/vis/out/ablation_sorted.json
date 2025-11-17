@@ -4,7 +4,7 @@
     "coarse_top1": 0.9646,
     "fine_top1": 0.9231,
     "param_count": 86223224,
-    "forward_ms_bs1_224": 31.436258181929592,
+    "forward_ms_bs1_224": 7.540678605437279,
     "peak_memory_allocated_bytes": 362784768,
     "checkpoint_path": "./cifar_regressor/checkpoints/ablation/vit_base_patch16_224_nofilm/best.pth",
     "config": {
@@ -46,7 +46,7 @@
     "coarse_top1": 0.9662,
     "fine_top1": 0.921,
     "param_count": 86623352,
-    "forward_ms_bs1_224": 51.858462393283844,
+    "forward_ms_bs1_224": 8.282868191599846,
     "peak_memory_allocated_bytes": 365634560,
     "checkpoint_path": "./cifar_regressor/checkpoints/ablation/vit_base_patch16_224/best.pth",
     "config": {
@@ -88,7 +88,7 @@
     "coarse_top1": 0.9558,
     "fine_top1": 0.9071,
     "param_count": 21893624,
-    "forward_ms_bs1_224": 5.309082567691803,
+    "forward_ms_bs1_224": 31.267130374908447,
     "peak_memory_allocated_bytes": 101945344,
     "checkpoint_path": "./cifar_regressor/checkpoints/ablation/vit_small_patch16_224_nofilm/best.pth",
     "config": {
@@ -130,7 +130,7 @@
     "coarse_top1": 0.954,
     "fine_top1": 0.9052,
     "param_count": 22096376,
-    "forward_ms_bs1_224": 5.485082790255547,
+    "forward_ms_bs1_224": 5.768051743507385,
     "peak_memory_allocated_bytes": 103704576,
     "checkpoint_path": "./cifar_regressor/checkpoints/ablation/vit_small_patch16_224/best.pth",
     "config": {
@@ -172,7 +172,7 @@
     "coarse_top1": 0.8902,
     "fine_top1": 0.8109,
     "param_count": 26636960,
-    "forward_ms_bs1_224": 6.270182132720947,
+    "forward_ms_bs1_224": 36.53564900159836,
     "peak_memory_allocated_bytes": 260325888,
     "checkpoint_path": "./cifar_regressor/checkpoints/ablation/resnet50_nofilm/best.pth",
     "config": {
@@ -214,7 +214,7 @@
     "coarse_top1": 0.8822,
     "fine_top1": 0.8105,
     "param_count": 22091168,
-    "forward_ms_bs1_224": 4.264592751860619,
+    "forward_ms_bs1_224": 7.310677692294121,
     "peak_memory_allocated_bytes": 124348416,
     "checkpoint_path": "./cifar_regressor/checkpoints/ablation/resnet34_nofilm/best.pth",
     "config": {
@@ -256,7 +256,7 @@
     "coarse_top1": 0.8893,
     "fine_top1": 0.8101,
     "param_count": 27163523,
-    "forward_ms_bs1_224": 6.8016186356544495,
+    "forward_ms_bs1_224": 38.665053620934486,
     "peak_memory_allocated_bytes": 260532224,
     "checkpoint_path": "./cifar_regressor/checkpoints/ablation/resnet50_cbam_nofilm/best.pth",
     "config": {
@@ -298,7 +298,7 @@
     "coarse_top1": 0.8829,
     "fine_top1": 0.8044,
     "param_count": 28221571,
-    "forward_ms_bs1_224": 35.957055911421776,
+    "forward_ms_bs1_224": 37.66084797680378,
     "peak_memory_allocated_bytes": 267058176,
     "checkpoint_path": "./cifar_regressor/checkpoints/ablation/resnet50_cbam/best.pth",
     "config": {
@@ -340,7 +340,7 @@
     "coarse_top1": 0.8806,
     "fine_top1": 0.8034,
     "param_count": 27695008,
-    "forward_ms_bs1_224": 6.3972655683755875,
+    "forward_ms_bs1_224": 6.49462416768074,
     "peak_memory_allocated_bytes": 262657536,
     "checkpoint_path": "./cifar_regressor/checkpoints/ablation/resnet50/best.pth",
     "config": {
@@ -382,7 +382,7 @@
     "coarse_top1": 0.8795,
     "fine_top1": 0.8018,
     "param_count": 22393123,
-    "forward_ms_bs1_224": 28.273705020546913,
+    "forward_ms_bs1_224": 5.181915313005447,
     "peak_memory_allocated_bytes": 125557248,
     "checkpoint_path": "./cifar_regressor/checkpoints/ablation/resnet34_cbam/best.pth",
     "config": {
@@ -424,7 +424,7 @@
     "coarse_top1": 0.8849,
     "fine_top1": 0.8013,
     "param_count": 22124579,
-    "forward_ms_bs1_224": 4.732277616858482,
+    "forward_ms_bs1_224": 26.24140754342079,
     "peak_memory_allocated_bytes": 125138432,
     "checkpoint_path": "./cifar_regressor/checkpoints/ablation/resnet34_cbam_nofilm/best.pth",
     "config": {
@@ -466,7 +466,7 @@
     "coarse_top1": 0.8767,
     "fine_top1": 0.7974,
     "param_count": 22359712,
-    "forward_ms_bs1_224": 4.568374156951904,
+    "forward_ms_bs1_224": 6.612153351306915,
     "peak_memory_allocated_bytes": 126077952,
     "checkpoint_path": "./cifar_regressor/checkpoints/ablation/resnet34/best.pth",
     "config": {
@@ -508,7 +508,7 @@
     "coarse_top1": 0.8537,
     "fine_top1": 0.7719,
     "param_count": 11983008,
-    "forward_ms_bs1_224": 13.796501979231834,
+    "forward_ms_bs1_224": 12.24275715649128,
     "peak_memory_allocated_bytes": 83826688,
     "checkpoint_path": "./cifar_regressor/checkpoints/ablation/resnet18_nofilm/best.pth",
     "config": {
@@ -550,7 +550,7 @@
     "coarse_top1": 0.8428,
     "fine_top1": 0.7693,
     "param_count": 12251552,
-    "forward_ms_bs1_224": 2.9315736144781113,
+    "forward_ms_bs1_224": 2.886372432112694,
     "peak_memory_allocated_bytes": 84950016,
     "checkpoint_path": "./cifar_regressor/checkpoints/ablation/resnet18/best.pth",
     "config": {
@@ -592,7 +592,7 @@
     "coarse_top1": 0.8472,
     "fine_top1": 0.7642,
     "param_count": 12284963,
-    "forward_ms_bs1_224": 4.940739646553993,
+    "forward_ms_bs1_224": 3.3127956092357635,
     "peak_memory_allocated_bytes": 85953024,
     "checkpoint_path": "./cifar_regressor/checkpoints/ablation/resnet18_cbam/best.pth",
     "config": {
@@ -634,7 +634,7 @@
     "coarse_top1": 0.8514,
     "fine_top1": 0.7625,
     "param_count": 12016419,
-    "forward_ms_bs1_224": 16.305117309093475,
+    "forward_ms_bs1_224": 6.055266782641411,
     "peak_memory_allocated_bytes": 84665856,
     "checkpoint_path": "./cifar_regressor/checkpoints/ablation/resnet18_cbam_nofilm/best.pth",
     "config": {

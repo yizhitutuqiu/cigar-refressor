@@ -12,6 +12,9 @@ from PIL import Image  # type: ignore[import-not-found]
 import torch  # type: ignore[import-not-found]
 from torch.utils.data import Dataset, DataLoader  # type: ignore[import-not-found]
 from torchvision import transforms  # type: ignore[import-not-found]
+import matplotlib.pyplot as plt  # type: ignore[import-not-found]
+from typing import List, Tuple
+from matplotlib.patches import Rectangle  # type: ignore[import-not-found]
 
 # Ensure project root is importable when running by absolute path
 import sys
@@ -57,6 +60,105 @@ def build_val_transform() -> transforms.Compose:
 		transforms.Normalize(mean, std),
 	])
 
+def _denormalize_image(img_tensor: torch.Tensor) -> np.ndarray:
+	# img_tensor: (C,H,W), normalized by ImageNet mean/std
+	mean = np.array([0.485, 0.456, 0.406], dtype=np.float32).reshape(3, 1, 1)
+	std = np.array([0.229, 0.224, 0.225], dtype=np.float32).reshape(3, 1, 1)
+	img = img_tensor.detach().cpu().float().numpy()
+	img = (img * std + mean)
+	img = np.clip(img, 0.0, 1.0)
+	img = (np.transpose(img, (1, 2, 0)) * 255.0).astype(np.uint8)
+	return img
+
+@torch.no_grad()
+def collect_hard_cases(model: CifarHierarchicalRegressor, loader: DataLoader, device: torch.device, max_cases: int = 100):
+	model.eval()
+	cases = []
+	for images, coarse_t, fine_t in loader:
+		images = images.to(device, non_blocking=True)
+		coarse_t = coarse_t.to(device, non_blocking=True)
+		fine_t = fine_t.to(device, non_blocking=True)
+		out = model(images)
+		c_probs = out["coarse_probs"]
+		f_probs = out["fine_probs"]
+		c_pred1 = torch.argmax(c_probs, dim=1)
+		f_pred1 = torch.argmax(f_probs, dim=1)
+		for i in range(images.size(0)):
+			wrong_c = (c_pred1[i] != coarse_t[i]).item()
+			wrong_f = (f_pred1[i] != fine_t[i]).item()
+			if wrong_c or wrong_f:
+				img_np = _denormalize_image(images[i])
+				cases.append({
+					"image": img_np,
+					"coarse_true": int(coarse_t[i].item()),
+					"fine_true": int(fine_t[i].item()),
+					"coarse_pred": int(c_pred1[i].item()),
+					"fine_pred": int(f_pred1[i].item()),
+					"wrong_c": bool(wrong_c),
+					"wrong_f": bool(wrong_f),
+				})
+				if len(cases) >= max_cases:
+					return cases
+	return cases
+
+def _safe_name(names: List[str], idx: int) -> str:
+	if names and 0 <= idx < len(names):
+		return str(names[idx])
+	return str(idx)
+
+def plot_hard_cases_grid(cases, save_path: str, coarse_names: List[str], fine_names: List[str], model_tag: str, rows: int = 5, cols: int = 8) -> None:
+	# rows x cols grid, each cell shows image + two text rows (GT fine, PR fine)
+	n = min(rows * cols, len(cases))
+	fig_w, fig_h = max(10, cols * 1.6), max(7, rows * 1.6)
+	fig, axes = plt.subplots(rows, cols, figsize=(fig_w, fig_h))
+	fig.suptitle(f"Hard cases — {model_tag}", fontsize=14)
+	for idx in range(rows * cols):
+		ax = axes[idx // cols][idx % cols]
+		ax.axis("off")
+		if idx >= n:
+			continue
+		case = cases[idx]
+		img = case["image"]
+		ax.imshow(img)
+		# reserve lower area for a table-like annotation block
+		true_f = case["fine_true"]
+		pred_f = case["fine_pred"]
+		wf = case["wrong_f"]
+		# map to names (only fine labels requested)
+		true_f_name = _safe_name(fine_names, true_f)
+		pred_f_name = _safe_name(fine_names, pred_f)
+		# Draw table background (bottom 22% height)
+		table_bottom = 0.0
+		table_height = 0.22
+		bg = Rectangle((0.0, table_bottom), 1.0, table_height, transform=ax.transAxes, facecolor="white", alpha=0.75, edgecolor="#cccccc", linewidth=0.5)
+		ax.add_patch(bg)
+		# divider line between GT row and PR row
+		ax.plot([0.05, 0.95], [table_bottom + table_height * 0.5, table_bottom + table_height * 0.5], transform=ax.transAxes, color="#dddddd", linewidth=0.8)
+		# Text rows (non-overlapping fixed positions)
+		ax.text(0.05, table_bottom + table_height * 0.75, f"GT: {true_f_name}", ha="left", va="center", fontsize=8, color="#000000", transform=ax.transAxes)
+		ax.text(0.05, table_bottom + table_height * 0.25, f"PR: {pred_f_name}", ha="left", va="center", fontsize=8, color=("#d62728" if wf else "#000000"), transform=ax.transAxes)
+	# reduce whitespace
+	fig.tight_layout(rect=[0, 0, 1, 0.93])
+	fig.subplots_adjust(hspace=0.25, wspace=0.1)
+	os.makedirs(os.path.dirname(save_path), exist_ok=True)
+	fig.savefig(save_path, dpi=200, bbox_inches="tight")
+	plt.close(fig)
+
+def _load_cifar100_label_names(dataset_root: str) -> Tuple[List[str], List[str]]:
+	"""
+	Load CIFAR-100 coarse and fine label names from the 'meta' file in dataset root.
+	Fallback to empty lists if not available.
+	"""
+	import pickle
+	meta_path = os.path.join(dataset_root, "meta")
+	try:
+		with open(meta_path, "rb") as f:
+			meta = pickle.load(f, encoding="latin1")
+		coarse = list(meta.get("coarse_label_names", []))
+		fine = list(meta.get("fine_label_names", []))
+		return coarse, fine
+	except Exception:
+		return [], []
 
 @torch.no_grad()
 def evaluate(model: CifarHierarchicalRegressor, loader: DataLoader, device: torch.device) -> Dict:
@@ -175,6 +277,7 @@ def main():
 
 	entries = sorted([d for d in os.listdir(args.checkpoint_root) if os.path.isdir(os.path.join(args.checkpoint_root, d))])
 	summary = {"results": []}
+	coarse_names, fine_names = _load_cifar100_label_names(args.dataset_root)
 	for tag in entries:
 		ckpt_dir = os.path.join(args.checkpoint_root, tag)
 		ckpt_path = os.path.join(ckpt_dir, "best.pth")
@@ -202,6 +305,18 @@ def main():
 		}
 		with open(os.path.join(out_dir, "eval_report_hier.json"), "w", encoding="utf-8") as f:
 			json.dump(report, f, ensure_ascii=False, indent=2)
+
+		# Visualize hard cases (first 40 wrong predictions)
+		try:
+			hard_cases = collect_hard_cases(model, loader, device, max_cases=40)
+			if hard_cases:
+				hard_path = os.path.join(out_dir, f"hard_cases_{tag}.png")
+				plot_hard_cases_grid(hard_cases, hard_path, coarse_names, fine_names, model_tag=tag, rows=5, cols=8)
+				print(f"[OK] hard cases saved -> {hard_path}")
+			else:
+				print("[INFO] no hard cases found")
+		except Exception as e:
+			print(f"[WARN] failed to generate hard cases for {tag}: {e}")
 
 		# Keep a flat summary
 		summary["results"].append({
